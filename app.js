@@ -9,6 +9,80 @@ $(document).ready(function () {
 
 
     /* =====================================================
+       SCROLL LOCK HELPERS
+    ===================================================== */
+
+    let scrollLockY = 0;
+
+    function lockBodyScroll() {
+        scrollLockY = window.scrollY || window.pageYOffset || 0;
+
+        $('body')
+            .addClass('modal-open')
+            .css('top', -scrollLockY + 'px');
+    }
+
+    function unlockBodyScroll() {
+        $('body')
+            .removeClass('modal-open')
+            .css('top', '');
+
+        window.scrollTo(0, scrollLockY);
+    }
+
+    function lockFiltersScroll() {
+        scrollLockY = window.scrollY || window.pageYOffset || 0;
+
+        $('body')
+            .addClass('filters-modal-open')
+            .css('top', -scrollLockY + 'px');
+    }
+
+    function unlockFiltersScroll() {
+        $('body')
+            .removeClass('filters-modal-open')
+            .css('top', '');
+
+        window.scrollTo(0, scrollLockY);
+    }
+
+
+    /* =====================================================
+       PREVENT TOUCH SCROLL ON OVERLAY
+    ===================================================== */
+
+    $(document).on('touchmove', function (e) {
+
+        // Блокируем touchmove только если открыта модалка
+        // и скролл не происходит внутри скроллируемого контента.
+
+        const target = $(e.target);
+
+        const insideProductContent =
+            target.closest('.product-modal-content').length > 0;
+
+        const insideFiltersBox =
+            target.closest('.filters-modal-box').length > 0;
+
+        if (
+            $('.product-modal').hasClass('active') &&
+            !insideProductContent
+        ) {
+            e.preventDefault();
+            return;
+        }
+
+        if (
+            $('.filters-modal').hasClass('active') &&
+            !insideFiltersBox
+        ) {
+            e.preventDefault();
+        }
+
+    });
+
+
+    /* =====================================================
        OPEN PRODUCT MODAL
     ===================================================== */
 
@@ -108,15 +182,22 @@ $(document).ready(function () {
 
 
         /* -------------------------
-           OPEN
+           OPEN (clean, no fadeIn flicker)
         ------------------------- */
 
-        $('.product-modal')
-            .addClass('active')
-            .hide()
-            .fadeIn(180);
+        // 1. Сначала показываем контейнер (display: flex),
+        //    но БЕЗ класса active — контент ещё opacity:0.
+        $('.product-modal').css('display', 'flex');
 
-        $('body').addClass('modal-open');
+        // 2. Форсируем reflow, чтобы браузер применил display:flex
+        //    до добавления класса active.
+        void $('.product-modal')[0].offsetWidth;
+
+        // 3. Добавляем active → проигрывается transition.
+        $('.product-modal').addClass('active');
+
+        // 4. Блокируем скролл body.
+        lockBodyScroll();
 
     });
 
@@ -269,19 +350,23 @@ $(document).ready(function () {
 
 
     /* =====================================================
-       CLOSE
+       CLOSE PRODUCT MODAL
     ===================================================== */
 
     function closeProductModal() {
 
-        $('.product-modal')
-            .fadeOut(160, function () {
+        $('.product-modal').removeClass('active');
 
-                $(this).removeClass('active');
+        // Ждём завершения transition, затем скрываем.
+        setTimeout(function () {
 
-            });
+            if (!$('.product-modal').hasClass('active')) {
+                $('.product-modal').css('display', 'none');
+            }
 
-        $('body').removeClass('modal-open');
+        }, 340);
+
+        unlockBodyScroll();
 
     }
 
@@ -388,7 +473,7 @@ $(document).ready(function () {
 
         $('.filters-modal').addClass('active');
 
-        $('body').addClass('filters-modal-open');
+        lockFiltersScroll();
 
     });
 
@@ -399,7 +484,7 @@ $(document).ready(function () {
 
         $('.filters-modal').removeClass('active');
 
-        $('body').removeClass('filters-modal-open');
+        unlockFiltersScroll();
 
     }
 
